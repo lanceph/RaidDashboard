@@ -57,16 +57,48 @@
             <label class="block text-sm font-black text-indigo-700 mb-2"
               >請輸入您的名字：</label
             >
-            <input
-              type="text"
-              v-model="personalSearch"
-              list="personal-player-list"
-              placeholder="🔍 點此尋找..."
-              class="w-full bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 text-lg outline-none text-slate-800 font-bold shadow-inner"
-            />
-            <datalist id="personal-player-list">
-              <option v-for="p in players" :key="p" :value="p"></option>
-            </datalist>
+            <div class="relative">
+              <input
+                type="text"
+                v-model="personalSearchInput"
+                placeholder="🔍 點此尋找..."
+                @focus="personalSearchOpen = true"
+                @input="handlePersonalSearchInput"
+                @keydown="handlePersonalSearchKeydown"
+                class="w-full bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 text-lg outline-none text-slate-800 font-bold shadow-inner"
+              />
+              <div
+                v-if="personalSearchOpen && filteredPersonalPlayers.length > 0"
+                class="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-slate-300 rounded-lg shadow-lg z-10"
+              >
+                <button
+                  v-for="(p, idx) in filteredPersonalPlayers"
+                  :key="p"
+                  type="button"
+                  @click="selectPersonalPlayer(p)"
+                  :class="['w-full text-left px-4 py-2.5 font-bold text-slate-800 border-b border-slate-100 last:border-b-0 transition-colors', idx === personalSearchHighlighted ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-indigo-50']"
+                >
+                  {{ p }}
+                </button>
+              </div>
+            </div>
+            <template v-if="personalSearchSelected && availablePersonalTypes.length > 1">
+              <label class="block text-sm font-black text-indigo-700 mt-4 mb-2">討伐類型篩選：</label>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  @click="personalTypeFilter = 'ALL'"
+                  :class="['px-3 py-1.5 rounded-lg text-sm font-black border-2 transition-colors', personalTypeFilter === 'ALL' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50']"
+                >全部</button>
+                <button
+                  v-for="type in availablePersonalTypes"
+                  :key="type"
+                  type="button"
+                  @click="personalTypeFilter = type"
+                  :class="['px-3 py-1.5 rounded-lg text-sm font-black border-2 transition-colors', personalTypeFilter === type ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50']"
+                >{{ type }}</button>
+              </div>
+            </template>
           </div>
 
           <div
@@ -139,15 +171,32 @@ import ChangelogModal from "./components/ChangelogModal.vue"; // 引入 Changelo
 
 // 引入 Composable 大腦
 import { useSchedule } from "./composables/useSchedule";
+import { Utils } from "./utils/parser";
 
 // 狀態管理
 const currentTab = ref("team");
 const selectedTime = ref("ALL");
 const searchQuery = ref("");
-const personalSearch = ref("");
+const personalSearchInput = ref("");
+const personalSearchSelected = ref("");
+const personalSearchOpen = ref(false);
+const personalSearchHighlighted = ref(-1);
+const personalTypeFilter = ref("ALL");
 const showChangelog = ref(false); // 控制 Changelog 顯示的狀態
 
 const { isLoading, errorMsg, matches, players, fetchData } = useSchedule();
+
+// 計算屬性：搜尋框中的人名
+const personalSearch = computed(() => personalSearchSelected.value);
+
+// 計算屬性：過濾後的玩家列表
+const filteredPersonalPlayers = computed(() => {
+  const input = personalSearchInput.value;
+  if (!input) return players.value;
+  return players.value.filter((p) => 
+    p.includes(input) || p.toLowerCase().includes(input.toLowerCase())
+  );
+});
 
 // 計算屬性：可用時間選單
 const availableTimes = computed(() => {
@@ -165,12 +214,82 @@ const filteredMatches = computed(() => {
   });
 });
 
+// 計算屬性：個人行程中的 BOSS 類型選單
+const availablePersonalTypes = computed(() => {
+  const name = personalSearchSelected.value.trim();
+  if (!name) return [];
+  const types = matches.value
+    .filter((m) => m.pMap.has(name))
+    .map((m) => Utils.getCellValue(m.block[0], 8))
+    .filter(Boolean);
+  return [...new Set(types)];
+});
+
 // 計算屬性：個人行程結果
 const personalMatches = computed(() => {
-  const name = personalSearch.value.trim();
+  const name = personalSearchSelected.value.trim();
   if (!name) return [];
-  return matches.value.filter((m) => m.pMap.has(name));
+  return matches.value.filter((m) => {
+    if (!m.pMap.has(name)) return false;
+    if (personalTypeFilter.value !== "ALL") {
+      const tr = Utils.getCellValue(m.block[0], 8);
+      if (tr !== personalTypeFilter.value) return false;
+    }
+    return true;
+  });
 });
+
+// 個人搜尋輸入處理
+const handlePersonalSearchInput = () => {
+  personalSearchHighlighted.value = -1;
+  personalSearchOpen.value = true;
+};
+
+// 個人搜尋鍵盤處理
+const handlePersonalSearchKeydown = (e) => {
+  if (!personalSearchOpen.value) {
+    if (e.key === 'ArrowDown') {
+      personalSearchOpen.value = true;
+    }
+    return;
+  }
+
+  switch (e.key) {
+    case 'ArrowDown':
+      e.preventDefault();
+      personalSearchHighlighted.value = Math.min(
+        personalSearchHighlighted.value + 1,
+        filteredPersonalPlayers.value.length - 1
+      );
+      break;
+    case 'ArrowUp':
+      e.preventDefault();
+      personalSearchHighlighted.value = Math.max(
+        personalSearchHighlighted.value - 1,
+        -1
+      );
+      break;
+    case 'Enter':
+      e.preventDefault();
+      if (personalSearchHighlighted.value >= 0) {
+        const selected = filteredPersonalPlayers.value[personalSearchHighlighted.value];
+        selectPersonalPlayer(selected);
+      }
+      break;
+    case 'Escape':
+      e.preventDefault();
+      personalSearchOpen.value = false;
+      break;
+  }
+};
+
+// 選擇個人玩家
+const selectPersonalPlayer = (p) => {
+  personalSearchSelected.value = p;
+  personalSearchInput.value = p;
+  personalSearchOpen.value = false;
+  personalTypeFilter.value = 'ALL';
+};
 
 // 截圖功能
 const handleShare = async () => {
