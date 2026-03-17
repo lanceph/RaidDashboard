@@ -1,17 +1,38 @@
 <template>
   <div
-    class="bg-white border-2 border-indigo-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all"
+    class="bg-white border-2 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all"
+    :class="meta.borderClass"
   >
     <div
-      class="bg-indigo-50/80 px-5 py-3 border-b border-indigo-100 flex justify-between items-center"
+      :class="[
+        'px-5 py-3 border-b flex justify-between items-start sm:items-center flex-col sm:flex-row gap-2',
+        meta.bgClass,
+      ]"
     >
-      <div class="font-black text-indigo-800 text-lg tracking-wide">
-        {{ match.dk }}
+      <div class="flex flex-col">
+        <div :class="['font-black text-lg tracking-wide', meta.textClass]">
+          {{ match.dk }}
+        </div>
+
+        <div class="flex items-center gap-2 mt-1">
+          <span class="text-sm font-bold text-slate-700">{{
+            meta.bossType
+          }}</span>
+          <span
+            v-if="meta.bossAttr && meta.bossAttr !== '-'"
+            class="text-xs font-black px-2 py-0.5 bg-white/80 rounded border shadow-sm"
+            :class="meta.textClass"
+          >
+            {{ meta.bossAttr }}
+          </span>
+        </div>
       </div>
+
       <div
-        class="text-xs font-black px-2.5 py-1 bg-white text-indigo-600 rounded shadow-sm border border-indigo-100"
+        class="text-xs font-black px-2.5 py-1 bg-white rounded shadow-sm border border-slate-200"
+        :class="meta.textClass"
       >
-        {{ meta.t }}
+        {{ meta.matchName }}
       </div>
     </div>
 
@@ -73,20 +94,45 @@ const props = defineProps({
   playerName: String,
 });
 
-// 解析出場次的基本資訊 (BOSS、時間)
+// 解析出場次的基本資訊 (BOSS、時間、屬性)，並加入顏色邏輯
 const meta = computed(() => {
   const b = props.match.block;
-  return {
-    t: Utils.getCellValue(b[0], 13), // 場次名稱 (例如: 第一場)
-  };
+  // 加上 || "" 防止因為空值報錯
+  const bossType = Utils.getCellValue(b[0], 1) || "";
+  const bossAttr = Utils.getCellValue(b[0], 8) || "";
+  const matchName = Utils.getCellValue(b[0], 13) || "";
+
+  // 預設樣式 (與 MatchCard 同步的灰色調)
+  let bgClass = "bg-slate-100 border-slate-300";
+  let borderClass = "border-slate-300";
+  let textClass = "text-slate-700";
+
+  // 🌟 使用與 MatchCard 完全一模一樣的 Tailwind Class，保證編譯器能抓到！
+  if (bossAttr.includes("木") || bossType.includes("鳥")) {
+    bgClass = "bg-green-100 border-green-400";
+    borderClass = "border-green-400";
+    textClass = "text-green-800";
+  } else if (bossAttr.includes("光") || bossType.includes("雷")) {
+    bgClass = "bg-yellow-100 border-yellow-400";
+    borderClass = "border-yellow-400";
+    textClass = "text-yellow-800";
+  } else if (bossAttr.includes("暗") || bossType.includes("地下")) {
+    bgClass = "bg-purple-100 border-purple-400";
+    borderClass = "border-purple-400";
+    textClass = "text-purple-800";
+  } else if (bossAttr.includes("火") || bossType.includes("魔女")) {
+    bgClass = "bg-red-100 border-red-400";
+    borderClass = "border-red-400";
+    textClass = "text-red-800";
+  }
+
+  return { bossType, bossAttr, matchName, bgClass, borderClass, textClass };
 });
 
-// 拿出該玩家在這場的所有任務 (使用 ScheduleParser 做好的 pMap)
 const playerTasks = computed(() => {
   return props.match.pMap.get(props.playerName) || [];
 });
 
-// 沿用之前的屬性顏色邏輯
 const getElementClass = (item) => {
   const attr = store.getAttr(item);
   if (attr.includes("木"))

@@ -54,19 +54,16 @@
           <div
             class="bg-white border border-slate-200 rounded-xl p-5 mb-6 shadow-sm"
           >
-            <label class="block text-sm font-black text-indigo-700 mb-2"
-              >請輸入您的名字：</label
+            <label class="block text-sm font-black text-indigo-700 mb-3"
+              >請輸入您的名字尋找專屬行程：</label
             >
-            <input
-              type="text"
+
+            <PlayerAutocomplete
               v-model="personalSearch"
-              list="personal-player-list"
-              placeholder="🔍 點此尋找..."
-              class="w-full bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 text-lg outline-none text-slate-800 font-bold shadow-inner"
+              :options="players"
+              placeholder="點此尋找..."
+              inputClasses="py-1"
             />
-            <datalist id="personal-player-list">
-              <option v-for="p in players" :key="p" :value="p"></option>
-            </datalist>
           </div>
 
           <div
@@ -136,6 +133,7 @@ import FilterBar from "./components/FilterBar.vue";
 import MatchCard from "./components/MatchCard.vue";
 import PersonalCard from "./components/PersonalCard.vue";
 import ChangelogModal from "./components/ChangelogModal.vue"; // 引入 Changelog 元件
+import PlayerAutocomplete from "./components/PlayerAutocomplete.vue";
 
 // 引入 Composable 大腦
 import { useSchedule } from "./composables/useSchedule";
