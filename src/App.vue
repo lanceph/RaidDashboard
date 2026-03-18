@@ -42,10 +42,12 @@
             </div>
 
             <MatchCard
-              v-for="match in filteredMatches"
+              v-for="(match, idx) in filteredMatches"
               :key="match.dk"
               :block="match.block"
               :searchQuery="searchQuery"
+              :captureId="idx"
+              @discord="handleDiscordByMatch(match, idx)"
             />
           </div>
         </div>
@@ -207,6 +209,91 @@ const handleShare = async () => {
       // 顯示 Toast
       toast.classList.remove("opacity-0");
       setTimeout(() => toast.classList.add("opacity-0"), 3000);
+    });
+  } catch (err) {
+    console.error("截圖失敗:", err);
+  }
+};
+
+// 讀取用於通知頻道的 Discord webhook url 及需要通知的群組 ID
+const DISCORD_WEBHOOK_URL = import.meta.env.VITE_DISCORD_WEBHOOK_URL;
+const DISCORD_ROLE_ID = import.meta.env.VITE_DISCORD_ROLE_ID;
+
+// Discord 通知功能 (依場次發送)
+const handleDiscordByMatch = async (match, idx) => {
+  const toast = document.getElementById("toast");
+
+  if (!DISCORD_WEBHOOK_URL) {
+    console.error("Discord webhook URL 未設定");
+    if (toast) {
+      toast.textContent = "❌ 未設定 Discord Webhook";
+      toast.classList.remove("opacity-0");
+      setTimeout(() => {
+        toast.classList.add("opacity-0");
+        toast.textContent = "✅ 截圖已生成";
+      }, 3000);
+    }
+    return;
+  }
+
+  const element = document.getElementById(`match-capture-${idx}`);
+  const matchContent = element?.querySelector(".match-content");
+  const isCurrentlyHidden =
+    matchContent && window.getComputedStyle(matchContent).display === "none";
+
+  if (!element || !toast) {
+    return;
+  }
+
+  try {
+    if (isCurrentlyHidden) {
+      // Ensure collapsed cards still capture full team/member details for Discord.
+      matchContent.style.display = "grid";
+    }
+
+    const canvas = await html2canvas(element, {
+      backgroundColor: "#f8fafc",
+      scale: 2,
+      useCORS: true,
+    });
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      const safeMatchName = (match?.dk || "團隊")
+        .replace(/[\\/:*?"<>|]/g, "-")
+        .trim();
+      const fileName = `菠蘿油討伐表_${safeMatchName}_${new Date().getTime()}.png`;
+      const bossType =
+        match?.block?.[0]?.c?.[8]?.f ||
+        match?.block?.[0]?.c?.[8]?.v ||
+        "未知類型";
+
+      const roleMention = DISCORD_ROLE_ID ? `<@&${DISCORD_ROLE_ID}> ` : "";
+
+      try {
+        const formData = new FormData();
+        formData.append("file", blob, fileName);
+        formData.append(
+          "content",
+          `${roleMention}📣壞人討伐表出爐囉 - ${match?.dk || "未知場次"} (${bossType})`
+        );
+
+        const response = await fetch(DISCORD_WEBHOOK_URL, {
+          method: "POST",
+          body: formData,
+        });
+
+        toast.textContent = response.ok ? "✅ Discord 通知已發送" : "❌ Discord 發送失敗";
+      } catch (err) {
+        console.error("Discord 上傳失敗:", err);
+        toast.textContent = "❌ Discord 發送失敗";
+      }
+
+      toast.classList.remove("opacity-0");
+      setTimeout(() => {
+        toast.classList.add("opacity-0");
+        toast.textContent = "✅ 截圖已生成";
+      }, 3000);
     });
   } catch (err) {
     console.error("截圖失敗:", err);
