@@ -39,14 +39,25 @@ npm install
 
 ### 2. 環境變數設定
 
-請在專案根目錄建立一個 .env 檔案，並填入您的 Google 服務帳號憑證與表單 ID：
-程式碼片段
+請在專案根目錄建立一個 `.env` 檔案，並填入以下設定：
 
+```env
+# Google Sheets API
 GOOGLE_CLIENT_EMAIL=your-service-account@xxx.iam.gserviceaccount.com
 GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 GOOGLE_SHEET_ID=your-google-sheet-id
 
-(⚠️ 警告：請確保 .env 已加入 .gitignore，切勿將金鑰提交至公開儲存庫)
+# Frontend (Vite) - Discord 通知
+VITE_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your_webhook_id/your_webhook_token
+VITE_DISCORD_ROLE_ID=123456789012345678
+```
+
+說明：
+
+- `VITE_DISCORD_WEBHOOK_URL`：Discord Webhook URL（用於發送場次通知與圖片）
+- `VITE_DISCORD_ROLE_ID`：要 @ 提醒的 Discord 身份組 ID（選填，未設定則不會 mention）
+
+(⚠️ 警告：請確保 `.env` 已加入 `.gitignore`，切勿將金鑰提交至公開儲存庫)
 ### 3. 啟動開發伺服器
 
 由於專案包含 Serverless API，推薦使用 Vercel CLI 進行本地模擬測試：
