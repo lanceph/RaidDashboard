@@ -1,5 +1,5 @@
 <template>
-  <div class="match-container">
+  <div :id="`match-capture-${captureId}`" class="match-container">
     <div
       @click="isCollapsed = !isCollapsed"
       class="header-clickable bg-slate-100 border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
@@ -29,6 +29,14 @@
         <div class="bg-indigo-600 text-white px-4 py-1.5 rounded-lg shadow-md">
           {{ meta.t }}
         </div>
+        <button
+          type="button"
+          @click.stop="$emit('discord')"
+          class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-md shadow-purple-200 transition-all flex items-center gap-1"
+        >
+          <span>🎮</span>
+          <span>Discord通知</span>
+        </button>
       </div>
     </div>
 
@@ -55,7 +63,10 @@ import TeamColumn from "./TeamColumn.vue";
 const props = defineProps({
   block: Array,
   searchQuery: String,
+  captureId: Number,
 });
+
+defineEmits(["discord"]);
 
 const isCollapsed = ref(false);
 

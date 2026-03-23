@@ -42,10 +42,12 @@
             </div>
 
             <MatchCard
-              v-for="match in filteredMatches"
+              v-for="(match, idx) in filteredMatches"
               :key="match.dk"
               :block="match.block"
               :searchQuery="searchQuery"
+              :captureId="idx"
+              @discord="handleDiscordByMatch(match, idx)"
             />
           </div>
         </div>
@@ -57,13 +59,48 @@
             <label class="block text-sm font-black text-indigo-700 mb-3"
               >請輸入您的名字尋找專屬行程：</label
             >
-
-            <PlayerAutocomplete
-              v-model="personalSearch"
-              :options="players"
-              placeholder="點此尋找..."
-              inputClasses="py-1"
-            />
+            <div class="relative">
+              <input
+                type="text"
+                v-model="personalSearchInput"
+                placeholder="🔍 點此尋找..."
+                @focus="personalSearchOpen = true"
+                @input="handlePersonalSearchInput"
+                @keydown="handlePersonalSearchKeydown"
+                class="w-full bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 text-lg outline-none text-slate-800 font-bold shadow-inner"
+              />
+              <div
+                v-if="personalSearchOpen && filteredPersonalPlayers.length > 0"
+                class="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-slate-300 rounded-lg shadow-lg z-10"
+              >
+                <button
+                  v-for="(p, idx) in filteredPersonalPlayers"
+                  :key="p"
+                  type="button"
+                  @click="selectPersonalPlayer(p)"
+                  :class="['w-full text-left px-4 py-2.5 font-bold text-slate-800 border-b border-slate-100 last:border-b-0 transition-colors', idx === personalSearchHighlighted ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-indigo-50']"
+                >
+                  {{ p }}
+                </button>
+              </div>
+            </div>
+            <template v-if="personalSearchSelected && availablePersonalTypes.length > 1">
+              <label class="block text-sm font-black text-indigo-700 mt-4 mb-2">討伐類型篩選：</label>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  @click="personalTypeFilter = 'ALL'"
+                  :class="['px-3 py-1.5 rounded-lg text-sm font-black border-2 transition-colors', personalTypeFilter === 'ALL' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50']"
+                >全部</button>
+                <button
+                  v-for="type in availablePersonalTypes"
+                  :key="type"
+                  type="button"
+                  @click="personalTypeFilter = type"
+                  :class="['px-3 py-1.5 rounded-lg text-sm font-black border-2 transition-colors', personalTypeFilter === type ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50']"
+                >{{ type }}</button>
+              </div>
+            </template>
           </div>
 
           <div
@@ -137,15 +174,32 @@ import PlayerAutocomplete from "./components/PlayerAutocomplete.vue";
 
 // 引入 Composable 大腦
 import { useSchedule } from "./composables/useSchedule";
+import { Utils } from "./utils/parser";
 
 // 狀態管理
 const currentTab = ref("team");
 const selectedTime = ref("ALL");
 const searchQuery = ref("");
-const personalSearch = ref("");
+const personalSearchInput = ref("");
+const personalSearchSelected = ref("");
+const personalSearchOpen = ref(false);
+const personalSearchHighlighted = ref(-1);
+const personalTypeFilter = ref("ALL");
 const showChangelog = ref(false); // 控制 Changelog 顯示的狀態
 
 const { isLoading, errorMsg, matches, players, fetchData } = useSchedule();
+
+// 計算屬性：搜尋框中的人名
+const personalSearch = computed(() => personalSearchSelected.value);
+
+// 計算屬性：過濾後的玩家列表
+const filteredPersonalPlayers = computed(() => {
+  const input = personalSearchInput.value;
+  if (!input) return players.value;
+  return players.value.filter((p) => 
+    p.includes(input) || p.toLowerCase().includes(input.toLowerCase())
+  );
+});
 
 // 計算屬性：可用時間選單
 const availableTimes = computed(() => {
@@ -163,12 +217,82 @@ const filteredMatches = computed(() => {
   });
 });
 
+// 計算屬性：個人行程中的 BOSS 類型選單
+const availablePersonalTypes = computed(() => {
+  const name = personalSearchSelected.value.trim();
+  if (!name) return [];
+  const types = matches.value
+    .filter((m) => m.pMap.has(name))
+    .map((m) => Utils.getCellValue(m.block[0], 8))
+    .filter(Boolean);
+  return [...new Set(types)];
+});
+
 // 計算屬性：個人行程結果
 const personalMatches = computed(() => {
-  const name = personalSearch.value.trim();
+  const name = personalSearchSelected.value.trim();
   if (!name) return [];
-  return matches.value.filter((m) => m.pMap.has(name));
+  return matches.value.filter((m) => {
+    if (!m.pMap.has(name)) return false;
+    if (personalTypeFilter.value !== "ALL") {
+      const tr = Utils.getCellValue(m.block[0], 8);
+      if (tr !== personalTypeFilter.value) return false;
+    }
+    return true;
+  });
 });
+
+// 個人搜尋輸入處理
+const handlePersonalSearchInput = () => {
+  personalSearchHighlighted.value = -1;
+  personalSearchOpen.value = true;
+};
+
+// 個人搜尋鍵盤處理
+const handlePersonalSearchKeydown = (e) => {
+  if (!personalSearchOpen.value) {
+    if (e.key === 'ArrowDown') {
+      personalSearchOpen.value = true;
+    }
+    return;
+  }
+
+  switch (e.key) {
+    case 'ArrowDown':
+      e.preventDefault();
+      personalSearchHighlighted.value = Math.min(
+        personalSearchHighlighted.value + 1,
+        filteredPersonalPlayers.value.length - 1
+      );
+      break;
+    case 'ArrowUp':
+      e.preventDefault();
+      personalSearchHighlighted.value = Math.max(
+        personalSearchHighlighted.value - 1,
+        -1
+      );
+      break;
+    case 'Enter':
+      e.preventDefault();
+      if (personalSearchHighlighted.value >= 0) {
+        const selected = filteredPersonalPlayers.value[personalSearchHighlighted.value];
+        selectPersonalPlayer(selected);
+      }
+      break;
+    case 'Escape':
+      e.preventDefault();
+      personalSearchOpen.value = false;
+      break;
+  }
+};
+
+// 選擇個人玩家
+const selectPersonalPlayer = (p) => {
+  personalSearchSelected.value = p;
+  personalSearchInput.value = p;
+  personalSearchOpen.value = false;
+  personalTypeFilter.value = 'ALL';
+};
 
 // 截圖功能
 const handleShare = async () => {
@@ -205,6 +329,91 @@ const handleShare = async () => {
       // 顯示 Toast
       toast.classList.remove("opacity-0");
       setTimeout(() => toast.classList.add("opacity-0"), 3000);
+    });
+  } catch (err) {
+    console.error("截圖失敗:", err);
+  }
+};
+
+// 讀取用於通知頻道的 Discord webhook url 及需要通知的群組 ID
+const DISCORD_WEBHOOK_URL = import.meta.env.VITE_DISCORD_WEBHOOK_URL;
+const DISCORD_ROLE_ID = import.meta.env.VITE_DISCORD_ROLE_ID;
+
+// Discord 通知功能 (依場次發送)
+const handleDiscordByMatch = async (match, idx) => {
+  const toast = document.getElementById("toast");
+
+  if (!DISCORD_WEBHOOK_URL) {
+    console.error("Discord webhook URL 未設定");
+    if (toast) {
+      toast.textContent = "❌ 未設定 Discord Webhook";
+      toast.classList.remove("opacity-0");
+      setTimeout(() => {
+        toast.classList.add("opacity-0");
+        toast.textContent = "✅ 截圖已生成";
+      }, 3000);
+    }
+    return;
+  }
+
+  const element = document.getElementById(`match-capture-${idx}`);
+  const matchContent = element?.querySelector(".match-content");
+  const isCurrentlyHidden =
+    matchContent && window.getComputedStyle(matchContent).display === "none";
+
+  if (!element || !toast) {
+    return;
+  }
+
+  try {
+    if (isCurrentlyHidden) {
+      // Ensure collapsed cards still capture full team/member details for Discord.
+      matchContent.style.display = "grid";
+    }
+
+    const canvas = await html2canvas(element, {
+      backgroundColor: "#f8fafc",
+      scale: 2,
+      useCORS: true,
+    });
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      const safeMatchName = (match?.dk || "團隊")
+        .replace(/[\\/:*?"<>|]/g, "-")
+        .trim();
+      const fileName = `菠蘿油討伐表_${safeMatchName}_${new Date().getTime()}.png`;
+      const bossType =
+        match?.block?.[0]?.c?.[8]?.f ||
+        match?.block?.[0]?.c?.[8]?.v ||
+        "未知類型";
+
+      const roleMention = DISCORD_ROLE_ID ? `<@&${DISCORD_ROLE_ID}> ` : "";
+
+      try {
+        const formData = new FormData();
+        formData.append("file", blob, fileName);
+        formData.append(
+          "content",
+          `${roleMention}📣壞人討伐表出爐囉 - ${match?.dk || "未知場次"} (${bossType})`
+        );
+
+        const response = await fetch(DISCORD_WEBHOOK_URL, {
+          method: "POST",
+          body: formData,
+        });
+
+        toast.textContent = response.ok ? "✅ Discord 通知已發送" : "❌ Discord 發送失敗";
+      } catch (err) {
+        console.error("Discord 上傳失敗:", err);
+        toast.textContent = "❌ Discord 發送失敗";
+      }
+
+      toast.classList.remove("opacity-0");
+      setTimeout(() => {
+        toast.classList.add("opacity-0");
+        toast.textContent = "✅ 截圖已生成";
+      }, 3000);
     });
   } catch (err) {
     console.error("截圖失敗:", err);
