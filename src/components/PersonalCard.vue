@@ -1,12 +1,31 @@
 <template>
   <div
-    class="bg-white border-2 border-indigo-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all"
+    class="bg-white border-2 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all"
+    :class="meta.borderClass"
   >
     <div
-      class="bg-indigo-50/80 px-5 py-3 border-b border-indigo-100 flex justify-between items-center"
+      :class="[
+        'px-5 py-3 border-b flex justify-between items-start sm:items-center flex-col sm:flex-row gap-2',
+        meta.bgClass,
+      ]"
     >
-      <div class="font-black text-indigo-800 text-lg tracking-wide">
-        {{ match.dk }}
+      <div class="flex flex-col">
+        <div :class="['font-black text-lg tracking-wide', meta.textClass]">
+          {{ match.dk }}
+        </div>
+
+        <div class="flex items-center gap-2 mt-1">
+          <span class="text-sm font-bold text-slate-700">{{
+            meta.bossType
+          }}</span>
+          <span
+            v-if="meta.bossAttr && meta.bossAttr !== '-'"
+            class="text-xs font-black px-2 py-0.5 bg-white/80 rounded border shadow-sm"
+            :class="meta.textClass"
+          >
+            {{ meta.bossAttr }}
+          </span>
+        </div>
       </div>
       <div class="flex items-center gap-2">
         <div
@@ -89,7 +108,7 @@ const props = defineProps({
   playerName: String,
 });
 
-// 解析出場次的基本資訊 (BOSS、時間)
+// 解析出場次的基本資訊 (BOSS、時間、屬性)，並加入顏色邏輯
 const meta = computed(() => {
   const b = props.match.block;
   return {
@@ -99,7 +118,6 @@ const meta = computed(() => {
   };
 });
 
-// 拿出該玩家在這場的所有任務 (使用 ScheduleParser 做好的 pMap)
 const playerTasks = computed(() => {
   return props.match.pMap.get(props.playerName) || [];
 });

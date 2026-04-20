@@ -56,8 +56,8 @@
           <div
             class="bg-white border border-slate-200 rounded-xl p-5 mb-6 shadow-sm"
           >
-            <label class="block text-sm font-black text-indigo-700 mb-2"
-              >請輸入您的名字：</label
+            <label class="block text-sm font-black text-indigo-700 mb-3"
+              >請輸入您的名字尋找專屬行程：</label
             >
             <div class="relative">
               <input
@@ -170,6 +170,7 @@ import FilterBar from "./components/FilterBar.vue";
 import MatchCard from "./components/MatchCard.vue";
 import PersonalCard from "./components/PersonalCard.vue";
 import ChangelogModal from "./components/ChangelogModal.vue"; // 引入 Changelog 元件
+import PlayerAutocomplete from "./components/PlayerAutocomplete.vue";
 
 // 引入 Composable 大腦
 import { useSchedule } from "./composables/useSchedule";

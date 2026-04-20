@@ -1,14 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  // 告訴 Tailwind 去掃描這些檔案裡面的 class
-  content: [
-    "./index.html",
-    // 💡 加上 vue，讓 Tailwind 去掃描 Vue 元件！
-    "./src/**/*.{vue,js,ts,jsx,tsx}",
-  ],
-  // 這裡非常重要！
-  // 因為你的程式碼會動態拼接字串 (例如 theme-輸出、bg-green-100)
-  // 這裡的 safelist 可以確保 Tailwind 打包時不會把這些顏色刪除
+  // 🚨 這裡加上 vue，讓 Tailwind 去掃描 Vue 元件！
+  content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],
   safelist: [
     "theme-輸出",
     "theme-巫師",

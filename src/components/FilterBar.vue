@@ -20,18 +20,13 @@
       <label class="block text-xs font-bold text-slate-500 mb-1"
         >🔍 尋找成員</label
       >
-      <input
-        type="text"
-        :value="searchQuery"
-        @input="$emit('update:searchQuery', $event.target.value)"
-        list="player-list"
-        autocomplete="off"
-        placeholder="輸入名稱..."
-        class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none text-slate-700"
+
+      <PlayerAutocomplete
+        :modelValue="searchQuery"
+        @update:modelValue="$emit('update:searchQuery', $event)"
+        :options="players"
+        placeholder="請輸入玩家名稱..."
       />
-      <datalist id="player-list">
-        <option v-for="p in players" :key="p" :value="p"></option>
-      </datalist>
     </div>
 
     <div class="w-full md:w-auto">
@@ -46,6 +41,8 @@
 </template>
 
 <script setup>
+import PlayerAutocomplete from "./PlayerAutocomplete.vue";
+
 // 接收來自上層的資料
 defineProps({
   selectedTime: String,
