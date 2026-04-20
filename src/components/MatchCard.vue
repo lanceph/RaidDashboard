@@ -8,10 +8,20 @@
         <span class="collapse-icon text-slate-400 font-bold w-6">{{
           isCollapsed ? "➕" : "➖"
         }}</span>
+        
         <span :class="['text-3xl font-black tracking-tight', meta.tc]">{{
           meta.bt
         }}</span>
+        
         <span
+          v-if="meta.diff"
+          :class="['px-2 py-0.5 rounded text-sm font-black shadow-sm border', meta.diffClass]"
+        >
+          {{ meta.diff }}
+        </span>
+
+        <span
+          v-if="meta.tr && meta.tr !== '-'"
           :class="[
             'px-3 py-1 rounded-md text-sm font-black border-2 tracking-widest shadow-sm',
             meta.bc,
@@ -20,6 +30,7 @@
           {{ meta.tr }}
         </span>
       </div>
+      
       <div class="flex items-center gap-3 text-sm font-bold">
         <div
           class="text-indigo-700 font-mono bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm"
@@ -73,6 +84,7 @@ const isCollapsed = ref(false);
 const meta = computed(() => {
   const b = props.block;
   const bt = Utils.getCellValue(b[0], 1),
+    diff = Utils.getCellValue(b[0], 7), // 🌟 解析 Cell 7 的難易度 (英雄/普通)
     tr = Utils.getCellValue(b[0], 8),
     d = Utils.getCellValue(b[0], 9),
     cd = Utils.cleanDay(Utils.getCellValue(b[0], 11)),
@@ -94,6 +106,12 @@ const meta = computed(() => {
     tc = "text-red-600";
   }
 
-  return { bt, tr, d, cd, t, bc, tc };
+  // 🌟 判斷難度並賦予對應的 CSS 漸層色
+  let diffClass = "bg-slate-200 text-slate-600 border-slate-300";
+  if (diff && diff.includes("英雄")) {
+    diffClass = "bg-gradient-to-r from-red-500 to-orange-500 text-white border-red-600";
+  }
+
+  return { bt, tr, d, cd, t, bc, tc, diff, diffClass };
 });
 </script>
